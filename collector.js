@@ -5,19 +5,33 @@ const crypto = require('crypto');
 let filePrefix = 'agario.core.';
 
 function main() {
-    downloadLatestCore()
-        .then((code)=> {
-            return beautify(code);
-        })
+    setTimeout(main, 1000*60*5);
+    console.log('Start :', new Date());
+    getPreviousHash()
+        .then((hash)=>{
+            let previousHash = hash;
+            downloadLatestCore()
+                .then((code)=> {
+                    return beautify(code);
+                })
+                .then((code)=> {
+                    let newHash = hashFromString(code)
+                    console.log('    Current  Hash ', newHash);
+                    console.log('    Previous Hash ', previousHash);
+                    if (newHash !== previousHash){
+                        console.log('      --> Saving ...')
+                        saveHash(newHash);
+                        saveCore(code);
+                    } else {
+                        console.log('    --> Nothing to do...');
+                    }
+                    return code;
+                })
+                .catch((err)=> {
+                    console.log('Error : ', err)
+                });
 
-        .then((code)=> {
-            // console.log(code);
-            return code;
         })
-        .then(saveCore)
-        .catch((err)=> {
-            console.log('Error : ', err)
-        });
 }
 
 
@@ -77,33 +91,20 @@ function hashFromString(str) {
     return sha1sum;
 }
 
-// from http://stackoverflow.com/a/24853826/1446677
-function getNewestFile(dir, files) {
-    return new Promise(function (resolve, reject) {
-        if (!files || (files && files.length === 0)) {
-            reject('no files');
-        }
-        var newest = {file: files[0]};
-        var checked = 0;
-        fs.stat(dir + newest.file, function (err, stats) {
-            newest.mtime = stats.mtime;
-            for (var i = 0; i < files.length; i++) {
-                var file = files[i];
-                (function (file) {
-                    fs.stat(file, function (err, stats) {
-                        ++checked;
-                        if (stats.mtime.getTime() > newest.mtime.getTime()) {
-                            newest = {file: file, mtime: stats.mtime};
-                        }
-                        if (checked == files.length) {
-                            resolve(newest);
-                        }
-                    });
-                })(dir + file);
-            }
+function getPreviousHash(){
+    return new Promise(function (resolve, reject){
+        fs.readFile('./hash.txt', 'utf8', function(err, contents) {
+            resolve(contents);
         });
     });
 }
 
+function saveHash(hash){
+    return new Promise(function (resolve, reject){
+        fs.writeFile('./hash.txt', hash, function(error){
+            if(error)throw new Error('Error while writing hash file', error);
+        });
+    });
+}
 
 main();
